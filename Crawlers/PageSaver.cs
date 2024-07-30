@@ -1,4 +1,5 @@
 ﻿using LiteDB;
+using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
 
 namespace Crawlers;
@@ -30,6 +31,7 @@ public class PageSaver
     
     public Task<bool> CheckSaved(string url)
     {
+        return Task.FromResult(false);
         return Task.FromResult(_crawlerTargets.Exists(t => t.Url == url));
     }
     
@@ -42,8 +44,10 @@ public class PageSaver
         // replace invalid characters with fullwidth characters
         name = NormalizeFileName(name);
         var author = NormalizeFileName(crawlTarget.Author);
-        var saveto = Path.Combine(_root, $"{crawlTarget.Crawler}/{name} by {author}.pdf");
-        await page.PdfAsync(saveto);
+        var saveto = Path.Combine(_root, $"{crawlTarget.Crawler}/{name} by {author}.mhtml");
+        var cdpSession = await page.CreateCDPSessionAsync();
+        var pageContent = await cdpSession.SendAsync<JObject>("Page.captureSnapshot");
+        await File.WriteAllTextAsync(saveto, pageContent.Value<string>("data"));
         _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto));
     }
     
