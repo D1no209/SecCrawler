@@ -31,7 +31,6 @@ public class PageSaver
     
     public Task<bool> CheckSaved(string url)
     {
-        return Task.FromResult(false);
         return Task.FromResult(_crawlerTargets.Exists(t => t.Url == url));
     }
     
