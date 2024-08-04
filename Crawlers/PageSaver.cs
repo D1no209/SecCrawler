@@ -1,6 +1,7 @@
 ﻿using LiteDB;
 using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
+using Spectre.Console;
 
 namespace Crawlers;
 
@@ -32,6 +33,26 @@ public class PageSaver
     public Task<bool> CheckSaved(string url)
     {
         return Task.FromResult(_crawlerTargets.Exists(t => t.Url == url));
+    }
+
+    public void CheckBroken()
+    {
+        var path = _crawlerTargets.Query().Select(t => t.Path).ToList();
+        var home = path.GroupBy(Path.GetDirectoryName).ToList();
+        foreach (var grouping in home)
+        {
+            if (string.IsNullOrWhiteSpace(grouping.Key)) continue;
+            var actualFiles = Directory.EnumerateFiles(grouping.Key);
+            foreach (var actualFile in actualFiles)
+            {
+                path.Remove(actualFile);
+            }
+            foreach (var brokenPath in path)
+            {
+                AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", path);
+                _crawlerTargets.DeleteMany(t => t.Path == brokenPath);
+            }
+        }
     }
     
     public async Task SavePage(IPage? page, CrawlTarget crawlTarget)

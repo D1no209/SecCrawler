@@ -19,6 +19,8 @@ var browser = await new Launcher().LaunchAsync(new LaunchOptions()
 });
 
 var pageSaver = app.Services.GetRequiredService<PageSaver>();
+AnsiConsole.MarkupLine("Checking Broken Path");
+pageSaver.CheckBroken();
 var crawlers = app.Services.GetServices<AbstractCrawler>();
 List<Task> tasks = [];
 await AnsiConsole.Progress()
@@ -47,6 +49,6 @@ await AnsiConsole.Progress()
             });
             tasks.Add(task);
         }
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks.ToArray());
     });
     
