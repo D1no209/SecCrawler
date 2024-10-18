@@ -82,10 +82,18 @@ returnResult:
                 var element = await page.QuerySelectorAsync(selector);
                 await page.EvaluateFunctionAsync("element => element.style.display = 'none'", element);
             }
-
+            
+            // use the large photo
+            var photos = await page.QuerySelectorAllAsync("div.main-warpper > img");
+            foreach (var photo in photos)
+            {
+                // set src to the large attribute
+                await photo.EvaluateFunctionAsync("element => element.src = element.getAttribute('large')", photo);
+            }
+            
             var contents = await page.QuerySelectorAsync("div.content-detail");
             await page.EvaluateFunctionAsync("element => element.style.maxWidth = '100%'", contents);
-            await Task.Delay(1000);
+            await Task.Delay(5000);
             return page;
 
         }
