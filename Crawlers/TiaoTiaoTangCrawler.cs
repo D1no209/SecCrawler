@@ -4,6 +4,13 @@ namespace Crawlers;
 
 public class TiaoTiaoTangCrawler : AbstractCrawler
 {
+    private readonly PageSaver _pageSaver;
+
+    public TiaoTiaoTangCrawler(PageSaver pageSaver)
+    {
+        _pageSaver = pageSaver;
+    }
+    
     public override string Name => "跳跳堂";
     public override async Task<IPage> StartCrawl(IBrowser browser)
     {
@@ -16,6 +23,7 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
     {
         var pageNum = 1;
         var targets = new List<CrawlTarget>();
+        targets.AddRange(await _pageSaver.GetMarkedTargetsByCrawler("tttang"));
         do
         {
             await page.GoToAsync($"https://tttang.com/?page={pageNum}");
@@ -26,7 +34,9 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
                 var name = await link.EvaluateFunctionAsync<string>("(element) => element.innerText");
                 var url = await link.EvaluateFunctionAsync<string>("(element) => element.href");
                 var author = await element.QuerySelectorAsync("span.author > a").EvaluateFunctionAsync<string>("(element) => element.innerText");
-                targets.Add(new XianZhiCrawlTarget(name, url, author, "tttang"));
+                var target = new XianZhiCrawlTarget(name, url, author, "tttang");
+                await _pageSaver.MarkTarget(target);
+                targets.Add(target);
             }
             pageNum++;
             var nextPage = await page.QuerySelectorAsync("ul.pagination > li.last");
