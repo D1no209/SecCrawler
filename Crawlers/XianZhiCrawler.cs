@@ -1,4 +1,6 @@
-﻿using PuppeteerSharp;
+﻿using System.Text.Json;
+using Newtonsoft.Json;
+using PuppeteerSharp;
 
 namespace Crawlers;
 
@@ -64,6 +66,34 @@ returnResult:
     
     public override async Task<IPage?> ParseTarget(CrawlTarget crawlTarget, IPage page)
     {
+        await page.SetCookieAsync(JsonConvert.DeserializeObject<List<EditCookie>>(await File.ReadAllTextAsync("cookies/xz.json")).Select(t=>t.ToCookieParam()).ToArray());
+        await page.EvaluateExpressionOnNewDocumentAsync("""
+            const newProto = navigator.__proto__;
+        delete newProto.webdriver;  //删除navigator.webdriver字段
+        navigator.__proto__ = newProto;
+        window.chrome = {};  //添加window.chrome字段，为增加真实性还需向内部填充一些值
+        window.chrome.app = {"InstallState":"hehe", "RunningState":"haha", "getDetails":"xixi", "getIsInstalled":"ohno"};
+        window.chrome.csi = function(){};
+        window.chrome.loadTimes = function(){};
+        window.chrome.runtime = function(){};
+        Object.defineProperty(navigator, 'userAgent', {  //userAgent在无头模式下有headless字样，所以需覆写
+            get: () => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36",
+        });
+        Object.defineProperty(navigator, 'plugins', {  //伪装真实的插件信息
+            get: () => [{"description": "Portable Document Format",
+                        "filename": "internal-pdf-viewer",
+                        "length": 1,
+                        "name": "Chrome PDF Plugin"}]
+        });
+        Object.defineProperty(navigator, 'languages', { //添加语言
+            get: () => ["zh-CN", "zh", "en"],
+        });
+        const originalQuery = window.navigator.permissions.query; //notification伪装
+        window.navigator.permissions.query = (parameters) => (
+        parameters.name === 'notifications' ?
+          Promise.resolve({ state: Notification.permission }) :
+          originalQuery(parameters)
+        """);
         try
         {
             try
@@ -75,7 +105,10 @@ returnResult:
                 // ignore
             }
             // 隐藏无关元素
-
+            if (await page.GetTitleAsync() == "滑动验证页面")
+            {
+                await Task.Delay(TimeSpan.FromHours(1));
+            }
             List<string> selectors = [".navbar", ".sidebar", "#reply-box", ".bs-docs-footer"];
             foreach (var selector in selectors)
             {

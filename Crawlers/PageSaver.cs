@@ -37,7 +37,7 @@ public class PageSaver
 
     public void CheckBroken()
     {
-        var path = _crawlerTargets.Query().Select(t => t.Path).ToList();
+        var path = _crawlerTargets.Query().Select(t => t.Path.Replace("/","\\")).ToList();
         var home = path.GroupBy(Path.GetDirectoryName).ToList();
         foreach (var grouping in home)
         {
@@ -49,8 +49,8 @@ public class PageSaver
             }
             foreach (var brokenPath in path)
             {
-                AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", path);
-                _crawlerTargets.DeleteMany(t => t.Path == brokenPath);
+                AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
+                _crawlerTargets.DeleteMany(t => t.Path.Replace("/","\\") == brokenPath);
             }
         }
     }
