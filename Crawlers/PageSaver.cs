@@ -12,6 +12,13 @@ public class PageSaver
     private readonly ILiteCollection<CrawledPage> _crawlerTargets;
     private readonly ILiteCollection<CrawlTarget> _crawlerMarkedTarget;
 
+    public Task ClearCrawler(string crawler)
+    {
+        _crawlerMarkedTarget.DeleteMany(t => t.Crawler == crawler);
+        _crawlerTargets.DeleteMany(t => t.Crawler == (crawler));
+        return Task.CompletedTask;
+    } 
+    
     public PageSaver(string root)
     {
         _root = root;
@@ -68,7 +75,7 @@ public class PageSaver
         var cdpSession = await page.CreateCDPSessionAsync();
         var pageContent = await cdpSession.SendAsync<JObject>("Page.captureSnapshot");
         await File.WriteAllTextAsync(saveto, pageContent.Value<string>("data"));
-        _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto));
+        _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto, crawlTarget.Crawler));
     }
     
     public static string NormalizeFileName(string name)
@@ -88,4 +95,4 @@ public class PageSaver
     }
 }
 
-public record CrawledPage(string Name, string Url,string Author, string Path);
+public record CrawledPage(string Name, string Url,string Author, string Path, string Crawler);

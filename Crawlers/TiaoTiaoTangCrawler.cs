@@ -26,6 +26,7 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
         targets.AddRange(await _pageSaver.GetMarkedTargetsByCrawler("tttang"));
         do
         {
+            await Task.Delay(3000);
             await page.GoToAsync($"https://tttang.com/?page={pageNum}");
             var elements = await page.QuerySelectorAllAsync("div.media-body.mx-md-3.mx-2");
             foreach (var element in elements)
@@ -35,6 +36,10 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
                 var url = await link.EvaluateFunctionAsync<string>("(element) => element.href");
                 var author = await element.QuerySelectorAsync("span.author > a").EvaluateFunctionAsync<string>("(element) => element.innerText");
                 var target = new XianZhiCrawlTarget(name, url, author, "tttang");
+                if (targets.Exists(t=>t.Url == target.Url))
+                {
+                    goto returnResult;
+                }
                 await _pageSaver.MarkTarget(target);
                 targets.Add(target);
             }
@@ -47,7 +52,7 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
                 break;
             }
         } while (true);
-        
+        returnResult:
         return targets;
     }
 
@@ -56,6 +61,7 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
         try
         {
             await page.GoToAsync(crawlTarget.Url);
+            await Task.Delay(3000);
         }
         catch (Exception e)
         {

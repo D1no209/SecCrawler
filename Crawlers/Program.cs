@@ -45,7 +45,7 @@ await AnsiConsole.Progress()
                         continue;
                     var pg = await crawler.ParseTarget(crawlTarget, page);
                     await pageSaver.SavePage(pg, crawlTarget);
-                    AnsiConsole.WriteLine($"[{index}/{target.Count}] {crawlTarget.Name}");
+                    AnsiConsole.WriteLine($"[{crawlTarget.Crawler}][{index}/{target.Count}] {crawlTarget.Name}");
                 }
             });
             tasks.Add(task);
