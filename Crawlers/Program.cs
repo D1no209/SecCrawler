@@ -10,6 +10,7 @@ builder.ConfigureContainer(new DepositoryServiceProviderFactory());
 builder.Services.AddSingleton(new PageSaver(@"D:\安全文章存档"));
 builder.Services.AddSingleton<AbstractCrawler, XianZhiCrawler>();
 builder.Services.AddSingleton<AbstractCrawler, FreebufWeb>();
+builder.Services.AddSingleton<AbstractCrawler, TiaoTiaoTangCrawler>();
 var app = builder.Build();
 
 var browser = await new Launcher().LaunchAsync(new LaunchOptions()
