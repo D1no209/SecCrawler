@@ -47,11 +47,11 @@ public class PageSaver
             {
                 path.Remove(actualFile);
             }
-            foreach (var brokenPath in path)
-            {
-                AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
-                _crawlerTargets.DeleteMany(t => t.Path.Replace("/","\\") == brokenPath);
-            }
+        }
+        foreach (var brokenPath in path)
+        {
+            AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
+            _crawlerTargets.DeleteMany(t => t.Path.Replace("/","\\") == brokenPath);
         }
     }
     
