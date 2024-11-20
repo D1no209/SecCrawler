@@ -14,7 +14,7 @@ public abstract class AbstractCrawler
 
 public abstract class CrawlTarget
 {
-    public abstract string Name { get; }
+    public abstract string Name { get; set; }
     public abstract string Url { get; }
     public abstract string Author { get; }
     public abstract string Crawler { get; }

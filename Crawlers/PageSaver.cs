@@ -49,6 +49,12 @@ public class PageSaver
         foreach (var grouping in home)
         {
             if (string.IsNullOrWhiteSpace(grouping.Key)) continue;
+            if (!Directory.Exists(grouping.Key))
+            {
+                AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", grouping.Key.EscapeMarkup());
+                path.Remove(grouping.Key);
+                continue;
+            }
             var actualFiles = Directory.EnumerateFiles(grouping.Key);
             foreach (var actualFile in actualFiles)
             {

@@ -128,7 +128,7 @@ returnResult:
 
 public class XianZhiCrawlTarget(string name, string url, string author, string crawler) : CrawlTarget
 {
-    public override string Name { get; } = name;
+    public override string Name { get; set; } = name;
     public override string Url { get; } = url;
     public override string Author { get; } = author;
     public override string Crawler { get; } = crawler;
