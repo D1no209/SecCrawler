@@ -22,13 +22,36 @@ public class UrlListCrawler : AbstractCrawler
         try{
             await page.GoToAsync(crawlTarget.Url);
             // await Task.Delay(3000);
-            var ele = await page.QuerySelectorAsync("#img-content >h1");
+            var ele = await page.QuerySelectorAsync("#img-content > h1");
             if (ele == null)
             {
                 return null;
             }
             var title = (await ele.EvaluateFunctionAsync<string>("(e) => e.innerText")).Trim();
             crawlTarget.Name = title;
+            var authorName = await page.QuerySelectorAsync("#js_name");
+            if (authorName == null)
+            {
+                return null;
+            }
+
+            var author = (await authorName.EvaluateFunctionAsync<string>("(ele) => ele.innerText")).Trim();
+            crawlTarget.Author = author;
+            
+            // load all images
+            var images = await page.QuerySelectorAllAsync("img");
+            foreach (var image in images)
+            {
+                // check if image have `data-src` attr
+                var src = await image.EvaluateFunctionAsync<string>("(e) => e.getAttribute('data-src')");
+                if (src == null)
+                {
+                    continue;
+                }
+                await image.EvaluateFunctionAsync("e => e.src = e.getAttribute('data-src')");
+            }
+
+            await Task.Delay(3000);
             return page;
         }
         catch (Exception e)

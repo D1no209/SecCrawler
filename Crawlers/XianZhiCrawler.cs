@@ -130,6 +130,6 @@ public class XianZhiCrawlTarget(string name, string url, string author, string c
 {
     public override string Name { get; set; } = name;
     public override string Url { get; } = url;
-    public override string Author { get; } = author;
+    public override string Author { get; set; } = author;
     public override string Crawler { get; } = crawler;
 }
