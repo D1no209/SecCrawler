@@ -25,7 +25,12 @@ public class UrlListCrawler : AbstractCrawler
             var ele = await page.QuerySelectorAsync("#img-content > h1");
             if (ele == null)
             {
-                return null;
+                var followBtn = (await page.QuerySelectorAsync("#js_access_msg"));
+                if (followBtn is null)
+                    return null;
+                // get href
+                var newUrl  = await followBtn.EvaluateFunctionAsync<string>("(e) => e.href");
+                await page.GoToAsync(newUrl);
             }
             var title = (await ele.EvaluateFunctionAsync<string>("(e) => e.innerText")).Trim();
             crawlTarget.Name = title;
@@ -51,7 +56,7 @@ public class UrlListCrawler : AbstractCrawler
                 await image.EvaluateFunctionAsync("e => e.src = e.getAttribute('data-src')");
             }
 
-            await Task.Delay(3000);
+            await Task.Delay(2000);
             return page;
         }
         catch (Exception e)
