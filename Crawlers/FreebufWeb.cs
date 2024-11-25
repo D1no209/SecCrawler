@@ -1,4 +1,7 @@
-﻿using PuppeteerSharp;
+﻿using System.Net.Http.Json;
+using System.Text.Json.Serialization;
+using PuppeteerSharp;
+using Spectre.Console;
 
 namespace Crawlers;
 
@@ -21,43 +24,58 @@ public class FreebufWeb : AbstractCrawler
 
     public override async Task<List<CrawlTarget>> GetTargets(IPage page)
     {
-        // get page count
+        // https://www.freebuf.com/fapi/frontend/category/list?name=web&tag=category&limit=20&page=0&select=0&order=0
         var targets = new List<CrawlTarget>();
-        targets.AddRange(await _pageSaver.GetMarkedTargetsByCrawler("freebuf"));
-        var nextPageClicker = await page.QuerySelectorAsync("li[title='下一页']");
-        do
+        var httpClient = new HttpClient();
+        var pageId = 0;
+        while (true)
         {
-            var items = await page.QuerySelectorAllAsync("div.content-view > div.container-center > div.article-item");
-            foreach (var item in items)
-            {
-                var title = await item.QuerySelectorAsync("div.title-left > a");
-                var url = await title.EvaluateFunctionAsync<string>("(element) => element.href");
-                var name = await title.EvaluateFunctionAsync<string>("(element) => element.innerText");
-                name = name.Trim();
-                var author = await item.QuerySelectorAsync("div.item-bottom > p > a");
-                var authorName = await author.EvaluateFunctionAsync<string>("(element) => element.innerText");
-                if (targets.Exists(t=>t.Url == url))
-                {
-                    goto returnResult;
-                }
-
-                var target = new XianZhiCrawlTarget(name, url, authorName.Trim(), "freebuf");
-                await _pageSaver.MarkTarget(target);
-                targets.Add(target);
-            }
-            var goNext = await nextPageClicker.EvaluateFunctionAsync<bool>("element => element.classList.contains('ant-pagination-disabled')");
-            if (goNext)
+            await Task.Delay(500);
+            AnsiConsole.MarkupLine("Fetching page [yellow]{0}[/]", pageId);
+            var res = await httpClient.GetFromJsonAsync<FreebufResult>($"https://www.freebuf.com/fapi/frontend/category/list?name=web&tag=category&limit=20&page={pageId}&select=0&order=0");
+            if (res?.Data.Articles.Count is 0)
             {
                 break;
             }
 
-            await Task.Delay(1000);
-            await nextPageClicker.ClickAsync();
-        } while (true);
-returnResult:
+            pageId++;
+            var ars = res.Data.Articles
+                .Select(t => new XianZhiCrawlTarget(
+                    t.Title,
+                    $"https://www.freebuf.com{t.ArticleUrl}",
+                    t.Nickname,
+                    "freebuf"
+                ));
+            foreach (var xianZhiCrawlTarget in ars)
+            {
+                if (await _pageSaver.CheckSaved(xianZhiCrawlTarget.Url))
+                    break;
+                targets.Add(xianZhiCrawlTarget);
+                await _pageSaver.MarkTarget(xianZhiCrawlTarget);
+            }
+        }
+        
         return targets;
-
     }
+
+    class FreebufResult
+    {
+        [JsonPropertyName("data")] public FreebufData Data { get; set; }
+
+        internal class FreebufData
+        {
+            [JsonPropertyName("data_list")] public List<FreebufTargetData> Articles { get; set; }
+
+            public class FreebufTargetData
+            {
+                [JsonPropertyName("id")] public string Id { get; set; }
+                [JsonPropertyName("post_title")] public string Title { get; set; }
+                [JsonPropertyName("url")] public string ArticleUrl { get; set; }
+                [JsonPropertyName("nickname")] public string Nickname { get; set; }
+            }
+        }
+    }
+    
 
     public override async Task<IPage?> ParseTarget(CrawlTarget crawlTarget, IPage page)
     {

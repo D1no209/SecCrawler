@@ -73,6 +73,7 @@ public class PageSaver
         if (page == null)
             return;
         Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}"));
+        Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}-pdf"));
         var name = crawlTarget.Name;
         // replace invalid characters with fullwidth characters
         name = NormalizeFileName(name);

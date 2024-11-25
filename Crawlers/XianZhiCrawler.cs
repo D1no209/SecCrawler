@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using PuppeteerSharp;
+using Spectre.Console;
 
 namespace Crawlers;
 
@@ -57,17 +58,17 @@ public class XianZhiCrawler : AbstractCrawler
                 var author =
                     await (await element.QuerySelectorAsync("p.topic-info > a")).EvaluateFunctionAsync<string>(
                         "(element) => element.innerText");
-                // if (targets.Exists(t => t.Url == url))
-                // {
-                //     goto returnResult;
-                // }
+                if (targets.Exists(t => t.Url == url))
+                {
+                    goto returnResult;
+                }
 
                 var target = new XianZhiCrawlTarget(name, url, author, "xianzhi");
                 targets.Add(target);
                 await _pageSaver.MarkTarget(target);
             }
 
-            await Task.Delay(3000);
+            await Task.Delay(1000);
         }
 
         returnResult:
@@ -121,7 +122,8 @@ public class XianZhiCrawler : AbstractCrawler
             await request.ContinueAsync();
             return;
         }
-        // AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/]", _proxyRotator.GetCurrentProxy());
+        
+        AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/]", _proxyRotator.GetCurrentProxy());
         var httpClientHandler = new HttpClientHandler();
         httpClientHandler.Proxy = new WebProxy(_proxyRotator.GetCurrentProxy());
         var httpClient = new HttpClient(httpClientHandler);
