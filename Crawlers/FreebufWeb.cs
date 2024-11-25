@@ -25,7 +25,7 @@ public class FreebufWeb : AbstractCrawler
     public override async Task<List<CrawlTarget>> GetTargets(IPage page)
     {
         // https://www.freebuf.com/fapi/frontend/category/list?name=web&tag=category&limit=20&page=0&select=0&order=0
-        var targets = new List<CrawlTarget>();
+        var targets = (await _pageSaver.GetMarkedTargetsByCrawler("freebuf")).DistinctBy(t=>t.Url).ToList();
         var httpClient = new HttpClient();
         var pageId = 0;
         while (true)
@@ -49,12 +49,12 @@ public class FreebufWeb : AbstractCrawler
             foreach (var xianZhiCrawlTarget in ars)
             {
                 if (await _pageSaver.CheckSaved(xianZhiCrawlTarget.Url))
-                    break;
+                    goto returnResult;
                 targets.Add(xianZhiCrawlTarget);
                 await _pageSaver.MarkTarget(xianZhiCrawlTarget);
             }
         }
-        
+        returnResult:
         return targets;
     }
 

@@ -36,7 +36,7 @@ public class XianZhiCrawler : AbstractCrawler
     private async Task<List<CrawlTarget>> GetAreaTargets(IPage page, string area)
     {
         var targets = new List<CrawlTarget>();
-        targets.AddRange(await _pageSaver.GetMarkedTargetsByCrawler("xianzhi"));
+        targets.AddRange((await _pageSaver.GetMarkedTargetsByCrawler("xianzhi")).DistinctBy(t=>t.Url));
         await page.GoToAsync(@"https://xz.aliyun.com/tab/" + area);
         var pageSpan = await page.QuerySelectorAsync("ul.pull-right > li > a.active");
         var content = await pageSpan.EvaluateFunctionAsync<string>("(element) => element.innerText");
@@ -88,12 +88,14 @@ public class XianZhiCrawler : AbstractCrawler
             }
             catch
             {
-                // ignore
+                await _proxyRotator.RotateProxy();
+                goto navigateToPage;
             }
 
             // 隐藏无关元素
             if (await page.GetTitleAsync() == "滑动验证页面")
             {
+                AnsiConsole.MarkupLine("[yellow] WAF HITTED, ROTATING PROXY[/]");
                 await _proxyRotator.RotateProxy();
                 goto navigateToPage;
             }
@@ -104,8 +106,6 @@ public class XianZhiCrawler : AbstractCrawler
                 var element = await page.QuerySelectorAsync(selector);
                 await page.EvaluateFunctionAsync("element => element.style.display = 'none'", element);
             }
-
-            await Task.Delay(3000);
             return page;
         }
         catch
@@ -113,17 +113,17 @@ public class XianZhiCrawler : AbstractCrawler
             return null;
         }
     }
-    
 
-    private async Task  RequestInterceptor(IRequest request)
+
+    private async Task RequestInterceptor(IRequest request)
     {
         if (!request.Url.StartsWith("https://xz.aliyun.com/t/"))
         {
             await request.ContinueAsync();
             return;
         }
-        
-        AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/]", _proxyRotator.GetCurrentProxy());
+
+        AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/] , Requesting: {1}", _proxyRotator.GetCurrentProxy(), request.Url);
         var httpClientHandler = new HttpClientHandler();
         httpClientHandler.Proxy = new WebProxy(_proxyRotator.GetCurrentProxy());
         var httpClient = new HttpClient(httpClientHandler);
@@ -140,6 +140,7 @@ public class XianZhiCrawler : AbstractCrawler
         {
             msg.Headers.TryAddWithoutValidation(key, value);
         }
+
         if (request.HasPostData)
         {
             var postData = request.PostData;
@@ -155,6 +156,7 @@ public class XianZhiCrawler : AbstractCrawler
         }
         catch (Exception e)
         {
+            AnsiConsole.MarkupLine("[yellow]Request Error, rotating proxy[/]");
             await _proxyRotator.RotateProxy();
             await RequestInterceptor(request);
             return;
@@ -163,8 +165,8 @@ public class XianZhiCrawler : AbstractCrawler
         var content = await resp.Content.ReadAsByteArrayAsync();
         var body = Encoding.UTF8.GetString(content);
 
-        var respHeader = resp.Headers.ToDictionary(t=>t.Key, t=>(object)t.Value.First());
-        
+        var respHeader = resp.Headers.ToDictionary(t => t.Key, t => (object)t.Value.First());
+
         await request.RespondAsync(new ResponseData
         {
             Body = body,

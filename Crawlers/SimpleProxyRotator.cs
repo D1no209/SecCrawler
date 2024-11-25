@@ -13,7 +13,7 @@ public class SimpleProxyRotator : IProxyRotator
 
     private async Task RefreshProxies()
     {
-        var res = await _httpClient.GetStringAsync("https://share.proxy.qg.net/get?key=02CAC291&num=1&area=&isp=0&format=txt&seq=\\n&distinct=true");
+        var res = await _httpClient.GetStringAsync("https://share.proxy.qg.net/get?key=BE0E7894&num=1&area=&isp=0&format=txt&seq=\\n&distinct=true");
         _ips = res.Split('\n').ToList();
         _pointer = 0;
     }
