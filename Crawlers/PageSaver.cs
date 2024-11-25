@@ -81,6 +81,9 @@ public class PageSaver
         var cdpSession = await page.CreateCDPSessionAsync();
         var pageContent = await cdpSession.SendAsync<JObject>("Page.captureSnapshot");
         await File.WriteAllTextAsync(saveto, pageContent.Value<string>("data"));
+        
+        var pdfPath = Path.Combine(_root, $"{crawlTarget.Crawler}-pdf/{name} by {author}.pdf");
+        await page.PdfAsync(pdfPath);
         _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto, crawlTarget.Crawler));
     }
     

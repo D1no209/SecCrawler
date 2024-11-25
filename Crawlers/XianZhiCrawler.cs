@@ -1,5 +1,5 @@
-﻿using System.Text.Json;
-using Newtonsoft.Json;
+﻿using System.Net;
+using System.Text;
 using PuppeteerSharp;
 
 namespace Crawlers;
@@ -7,15 +7,19 @@ namespace Crawlers;
 public class XianZhiCrawler : AbstractCrawler
 {
     private readonly PageSaver _pageSaver;
+    private readonly IProxyRotator _proxyRotator;
 
-    public XianZhiCrawler(PageSaver pageSaver)
+    public XianZhiCrawler(PageSaver pageSaver, IProxyRotator proxyRotator)
     {
         _pageSaver = pageSaver;
+        _proxyRotator = proxyRotator;
     }
+
     public override string Name => "先知社区 - 技术文章";
 
     public override async Task<IPage> StartCrawl(IBrowser browser)
     {
+        await _proxyRotator.Initialize();
         var page = await browser.NewPageAsync();
         await page.GoToAsync(@"https://xz.aliyun.com/");
         return page;
@@ -33,7 +37,6 @@ public class XianZhiCrawler : AbstractCrawler
         var targets = new List<CrawlTarget>();
         targets.AddRange(await _pageSaver.GetMarkedTargetsByCrawler("xianzhi"));
         await page.GoToAsync(@"https://xz.aliyun.com/tab/" + area);
-
         var pageSpan = await page.QuerySelectorAsync("ul.pull-right > li > a.active");
         var content = await pageSpan.EvaluateFunctionAsync<string>("(element) => element.innerText");
         var res = content[2..];
@@ -45,13 +48,19 @@ public class XianZhiCrawler : AbstractCrawler
             var elements = await page.QuerySelectorAllAsync("table.topic-list > tbody > tr > td");
             foreach (var element in elements)
             {
-                var name = await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>("(element) => element.innerText");
-                var url = await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>("(element) => element.href");
-                var author = await (await element.QuerySelectorAsync("p.topic-info > a")).EvaluateFunctionAsync<string>("(element) => element.innerText");
-                if (targets.Exists(t => t.Url == url))
-                {
-                    goto returnResult;
-                }
+                var name =
+                    await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>(
+                        "(element) => element.innerText");
+                var url =
+                    await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>(
+                        "(element) => element.href");
+                var author =
+                    await (await element.QuerySelectorAsync("p.topic-info > a")).EvaluateFunctionAsync<string>(
+                        "(element) => element.innerText");
+                // if (targets.Exists(t => t.Url == url))
+                // {
+                //     goto returnResult;
+                // }
 
                 var target = new XianZhiCrawlTarget(name, url, author, "xianzhi");
                 targets.Add(target);
@@ -59,41 +68,17 @@ public class XianZhiCrawler : AbstractCrawler
             }
 
             await Task.Delay(3000);
-        } 
-returnResult:
+        }
+
+        returnResult:
         return targets;
     }
-    
+
     public override async Task<IPage?> ParseTarget(CrawlTarget crawlTarget, IPage page)
     {
-        await page.SetCookieAsync(JsonConvert.DeserializeObject<List<EditCookie>>(await File.ReadAllTextAsync("cookies/xz.json")).Select(t=>t.ToCookieParam()).ToArray());
-        await page.EvaluateExpressionOnNewDocumentAsync("""
-            const newProto = navigator.__proto__;
-        delete newProto.webdriver;  //删除navigator.webdriver字段
-        navigator.__proto__ = newProto;
-        window.chrome = {};  //添加window.chrome字段，为增加真实性还需向内部填充一些值
-        window.chrome.app = {"InstallState":"hehe", "RunningState":"haha", "getDetails":"xixi", "getIsInstalled":"ohno"};
-        window.chrome.csi = function(){};
-        window.chrome.loadTimes = function(){};
-        window.chrome.runtime = function(){};
-        Object.defineProperty(navigator, 'userAgent', {  //userAgent在无头模式下有headless字样，所以需覆写
-            get: () => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36",
-        });
-        Object.defineProperty(navigator, 'plugins', {  //伪装真实的插件信息
-            get: () => [{"description": "Portable Document Format",
-                        "filename": "internal-pdf-viewer",
-                        "length": 1,
-                        "name": "Chrome PDF Plugin"}]
-        });
-        Object.defineProperty(navigator, 'languages', { //添加语言
-            get: () => ["zh-CN", "zh", "en"],
-        });
-        const originalQuery = window.navigator.permissions.query; //notification伪装
-        window.navigator.permissions.query = (parameters) => (
-        parameters.name === 'notifications' ?
-          Promise.resolve({ state: Notification.permission }) :
-          originalQuery(parameters)
-        """);
+        await page.SetRequestInterceptionAsync(true);
+        page.AddRequestInterceptor(RequestInterceptor);
+        navigateToPage:
         try
         {
             try
@@ -104,11 +89,14 @@ returnResult:
             {
                 // ignore
             }
+
             // 隐藏无关元素
             if (await page.GetTitleAsync() == "滑动验证页面")
             {
-                await Task.Delay(TimeSpan.FromHours(1));
+                await _proxyRotator.RotateProxy();
+                goto navigateToPage;
             }
+
             List<string> selectors = [".navbar", ".sidebar", "#reply-box", ".bs-docs-footer"];
             foreach (var selector in selectors)
             {
@@ -116,13 +104,73 @@ returnResult:
                 await page.EvaluateFunctionAsync("element => element.style.display = 'none'", element);
             }
 
-            await Task.Delay(15000);
+            await Task.Delay(3000);
             return page;
         }
         catch
         {
             return null;
         }
+    }
+    
+
+    private async Task  RequestInterceptor(IRequest request)
+    {
+        if (!request.Url.StartsWith("https://xz.aliyun.com/t/"))
+        {
+            await request.ContinueAsync();
+            return;
+        }
+        // AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/]", _proxyRotator.GetCurrentProxy());
+        var httpClientHandler = new HttpClientHandler();
+        httpClientHandler.Proxy = new WebProxy(_proxyRotator.GetCurrentProxy());
+        var httpClient = new HttpClient(httpClientHandler);
+        var method = request.Method.Method switch
+        {
+            "GET" => HttpMethod.Get,
+            "POST" => HttpMethod.Post,
+            "PUT" => HttpMethod.Put,
+            "DELETE" => HttpMethod.Delete,
+            _ => HttpMethod.Get
+        };
+        var msg = new HttpRequestMessage(method, request.Url);
+        foreach (var (key, value) in request.Headers)
+        {
+            msg.Headers.TryAddWithoutValidation(key, value);
+        }
+        if (request.HasPostData)
+        {
+            var postData = request.PostData;
+            msg.Content = new StringContent(postData.ToString() ?? string.Empty);
+        }
+
+        HttpResponseMessage resp;
+        try
+        {
+            var ctkSource = new CancellationTokenSource();
+            ctkSource.CancelAfter(10000);
+            resp = await httpClient.SendAsync(msg, ctkSource.Token);
+        }
+        catch (Exception e)
+        {
+            await _proxyRotator.RotateProxy();
+            await RequestInterceptor(request);
+            return;
+        }
+
+        var content = await resp.Content.ReadAsByteArrayAsync();
+        var body = Encoding.UTF8.GetString(content);
+
+        var respHeader = resp.Headers.ToDictionary(t=>t.Key, t=>(object)t.Value.First());
+        
+        await request.RespondAsync(new ResponseData
+        {
+            Body = body,
+            BodyData = content,
+            Headers = respHeader,
+            ContentType = resp.Content.Headers.ContentType?.ToString(),
+            Status = resp.StatusCode
+        });
     }
 }
 
