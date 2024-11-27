@@ -17,12 +17,18 @@ public class XianZhiCrawler : AbstractCrawler
     }
 
     public override string Name => "先知社区 - 技术文章";
-
-    public override async Task<IPage> StartCrawl(IBrowser browser)
+    
+    public override async Task StartCrawl()
     {
         await _proxyRotator.Initialize();
+    }
+
+    public override async Task<IPage> NewPage(IBrowser browser)
+    {
         var page = await browser.NewPageAsync();
         await page.GoToAsync(@"https://xz.aliyun.com/");
+        await page.SetRequestInterceptionAsync(true);
+        page.AddRequestInterceptor(RequestInterceptor);
         return page;
     }
 
@@ -77,8 +83,6 @@ public class XianZhiCrawler : AbstractCrawler
 
     public override async Task<IPage?> ParseTarget(CrawlTarget crawlTarget, IPage page)
     {
-        await page.SetRequestInterceptionAsync(true);
-        page.AddRequestInterceptor(RequestInterceptor);
         navigateToPage:
         try
         {

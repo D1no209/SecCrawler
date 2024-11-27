@@ -12,7 +12,12 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
     }
     
     public override string Name => "跳跳堂";
-    public override async Task<IPage> StartCrawl(IBrowser browser)
+    public override Task StartCrawl()
+    {
+        return Task.CompletedTask;
+    }
+
+    public override async Task<IPage> NewPage(IBrowser browser)
     {
         var page = await browser.NewPageAsync();
         await page.GoToAsync(@"https://tttang.com/");

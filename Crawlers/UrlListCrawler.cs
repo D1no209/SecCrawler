@@ -5,9 +5,15 @@ namespace Crawlers;
 public class UrlListCrawler : AbstractCrawler
 {
     public override string Name => "微信文章";
-    public override async Task<IPage> StartCrawl(IBrowser browser)
+    public override Task StartCrawl()
     {
-        return await browser.NewPageAsync();
+        return Task.CompletedTask;
+    }
+    
+    public override async Task<IPage> NewPage(IBrowser browser)
+    {
+        var page = await browser.NewPageAsync();
+        return page;
     }
 
     public override async Task<List<CrawlTarget>> GetTargets(IPage page)

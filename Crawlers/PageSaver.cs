@@ -1,4 +1,5 @@
 ﻿using LiteDB;
+using LiteDB.Engine;
 using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
 using Spectre.Console;
@@ -22,7 +23,7 @@ public class PageSaver
     public PageSaver(string root)
     {
         _root = root;
-        _db = new LiteDatabase("crawl.db");
+        _db = new LiteDatabase("data/crawlers.db");
         _crawlerTargets = _db.GetCollection<CrawledPage>();
         _crawlerMarkedTarget = _db.GetCollection<CrawlTarget>();
     }
@@ -57,7 +58,7 @@ public class PageSaver
             _crawlerTargets.Insert(new CrawledPage(crawlMarkedTarget.Name, crawlMarkedTarget.Url, crawlMarkedTarget.Author, filepath, crawlMarkedTarget.Crawler));
         }
         */
-        var path = _crawlerTargets.Query().Select(t => t.Path.Replace("/","\\")).ToList();
+        var path = _crawlerTargets.Query().Select(t => t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\',Path.DirectorySeparatorChar)).ToList();
         var home = path.GroupBy(Path.GetDirectoryName).ToList();
         foreach (var grouping in home)
         {
@@ -75,7 +76,7 @@ public class PageSaver
             }
         }
         
-        _crawlerTargets.DeleteMany(t => path.Contains(t.Path.Replace("/", "\\")));
+        _crawlerTargets.DeleteMany(t => path.Contains(t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\',Path.DirectorySeparatorChar)));
         foreach (var brokenPath in path)
         {
             AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
@@ -119,4 +120,20 @@ public class PageSaver
     }
 }
 
-public record CrawledPage(string Name, string Url,string Author, string Path, string Crawler);
+public class CrawledPage(string name, string url, string author, string path, string crawler)
+{
+
+    public CrawledPage() : this("", "", "", "", "")
+    {
+        
+    }
+    
+    public string Name { get; set; } = name;
+    public string Url { get; set; } = url;
+    
+    public string Author { get; set; } = author;
+    
+    public string Path { get; set; } = path;
+    
+    public string Crawler { get; set; } = crawler;
+}

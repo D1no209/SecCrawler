@@ -15,7 +15,12 @@ public class FreebufWeb : AbstractCrawler
         _pageSaver = pageSaver;
     }
     
-    public override async Task<IPage> StartCrawl(IBrowser browser)
+    public override Task StartCrawl()
+    {
+        return Task.CompletedTask;
+    }
+
+    public override async Task<IPage> NewPage(IBrowser browser)
     {
         var page = await browser.NewPageAsync();
         await page.GoToAsync("https://www.freebuf.com/articles/web");

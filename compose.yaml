@@ -1,0 +1,5 @@
+﻿services:
+  crawler:
+    volumes:
+      - ./data:/app/data
+      - ./articles:/app/articles

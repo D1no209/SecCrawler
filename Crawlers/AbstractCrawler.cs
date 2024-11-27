@@ -5,7 +5,8 @@ namespace Crawlers;
 public abstract class AbstractCrawler
 {
     public abstract string Name { get; }
-    public abstract Task<IPage> StartCrawl(IBrowser browser);
+    public abstract Task StartCrawl();
+    public abstract Task<IPage> NewPage(IBrowser browser);
 
     public abstract Task<List<CrawlTarget>> GetTargets(IPage page);
 
