@@ -44,6 +44,19 @@ public class PageSaver
 
     public void CheckBroken()
     {
+        /*
+         // Recover from wrong removed broken path
+        // merge _crawlerTargets and _crawlerMarkedTarget
+        var urls = _crawlerTargets.FindAll().Select(t => t.Url).ToList();
+        foreach (var crawlMarkedTarget in _crawlerMarkedTarget.FindAll())
+        {
+            if (urls.Contains(crawlMarkedTarget.Url))
+                continue;
+            var filepath = Path.Combine(_root,
+                $"{crawlMarkedTarget.Crawler}/{NormalizeFileName(crawlMarkedTarget.Name)} by {NormalizeFileName(crawlMarkedTarget.Author)}.mhtml");
+            _crawlerTargets.Insert(new CrawledPage(crawlMarkedTarget.Name, crawlMarkedTarget.Url, crawlMarkedTarget.Author, filepath, crawlMarkedTarget.Crawler));
+        }
+        */
         var path = _crawlerTargets.Query().Select(t => t.Path.Replace("/","\\")).ToList();
         var home = path.GroupBy(Path.GetDirectoryName).ToList();
         foreach (var grouping in home)
@@ -61,10 +74,11 @@ public class PageSaver
                 path.Remove(actualFile);
             }
         }
+        
+        _crawlerTargets.DeleteMany(t => path.Contains(t.Path.Replace("/", "\\")));
         foreach (var brokenPath in path)
         {
             AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
-            _crawlerTargets.DeleteMany(t => t.Path.Replace("/","\\") == brokenPath);
         }
     }
     

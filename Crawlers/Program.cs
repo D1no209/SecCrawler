@@ -34,7 +34,7 @@ await AnsiConsole.Progress()
             var task = Task.Run(async () =>
             {
                 var task = ctx.AddTask(crawler.Name);
-                task.IsIndeterminate(true);
+                task.IsIndeterminate();
                 var page = await crawler.StartCrawl(browser);
                 var target = await crawler.GetTargets(page);
                 task.IsIndeterminate(false);

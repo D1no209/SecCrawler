@@ -117,7 +117,33 @@ public class XianZhiCrawler : AbstractCrawler
 
     private async Task RequestInterceptor(IRequest request)
     {
-        if (!request.Url.StartsWith("https://xz.aliyun.com/t/"))
+        var url = request.Url;
+        if (url.StartsWith("https://storage.tttang.com/"))
+        {
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(10000);
+            url = $"https://web.archive.org/web/0if_/{url}";
+            var backupHttpHandler = new HttpClientHandler();
+            backupHttpHandler.Proxy = new WebProxy("http://127.0.0.1:7897");
+            var backupHttpClient = new HttpClient(backupHttpHandler);
+            try
+            {
+                var res = await backupHttpClient.GetByteArrayAsync(url, cts.Token);
+                await request.RespondAsync(new ResponseData
+                {
+                    BodyData = res,
+                    ContentType = "image/jpeg",
+                    Status = HttpStatusCode.OK
+                });
+            }
+            catch (Exception e)
+            {
+                AnsiConsole.MarkupLine($"[yellow]image from tttang error[/], {url}");
+                await request.AbortAsync();
+            }
+        }
+        
+        if (!url.StartsWith("https://xz.aliyun.com/t/"))
         {
             await request.ContinueAsync();
             return;
@@ -135,7 +161,7 @@ public class XianZhiCrawler : AbstractCrawler
             "DELETE" => HttpMethod.Delete,
             _ => HttpMethod.Get
         };
-        var msg = new HttpRequestMessage(method, request.Url);
+        var msg = new HttpRequestMessage(method, url);
         foreach (var (key, value) in request.Headers)
         {
             msg.Headers.TryAddWithoutValidation(key, value);

@@ -102,7 +102,7 @@ public class FreebufWeb : AbstractCrawler
             }
             
             // use the large photo
-            var photos = await page.QuerySelectorAllAsync("div.main-warpper > img");
+            var photos = await page.QuerySelectorAllAsync("p > img");
             foreach (var photo in photos)
             {
                 // set src to the large attribute
