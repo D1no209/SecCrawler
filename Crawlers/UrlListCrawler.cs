@@ -27,26 +27,32 @@ public class UrlListCrawler : AbstractCrawler
     {
         try{
             await page.GoToAsync(crawlTarget.Url);
-            // await Task.Delay(3000);
+            await Task.Delay(3000);
             var ele = await page.QuerySelectorAsync("#img-content > h1");
             if (ele == null)
             {
                 var followBtn = (await page.QuerySelectorAsync("#js_access_msg"));
-                if (followBtn is null)
-                    return null;
-                // get href
-                var newUrl  = await followBtn.EvaluateFunctionAsync<string>("(e) => e.href");
-                await page.GoToAsync(newUrl);
-            }
-            var title = (await ele.EvaluateFunctionAsync<string>("(e) => e.innerText")).Trim();
-            crawlTarget.Name = title;
-            var authorName = await page.QuerySelectorAsync("#js_name");
-            if (authorName == null)
-            {
-                return null;
+                if (followBtn is not null)
+                {
+                    // get href
+                    var newUrl = await followBtn.EvaluateFunctionAsync<string>("(e) => e.href");
+                    await page.GoToAsync(newUrl);
+                }
             }
 
-            var author = (await authorName.EvaluateFunctionAsync<string>("(ele) => ele.innerText")).Trim();
+            string title;
+            var author = "";
+            if (ele != null)
+                title = (await ele.EvaluateFunctionAsync<string>("(e) => e.innerText")).Trim();
+            else
+                title = await page.GetTitleAsync();
+            crawlTarget.Name = title;
+            var authorName = await page.QuerySelectorAsync("#js_name");
+            if (authorName is not null)
+            {
+                author = (await authorName.EvaluateFunctionAsync<string>("(ele) => ele.innerText")).Trim();
+            }
+
             crawlTarget.Author = author;
             
             // load all images
