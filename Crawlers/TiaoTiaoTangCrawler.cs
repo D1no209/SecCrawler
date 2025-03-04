@@ -40,7 +40,7 @@ public class TiaoTiaoTangCrawler : AbstractCrawler
                 var name = await link.EvaluateFunctionAsync<string>("(element) => element.innerText");
                 var url = await link.EvaluateFunctionAsync<string>("(element) => element.href");
                 var author = await element.QuerySelectorAsync("span.author > a").EvaluateFunctionAsync<string>("(element) => element.innerText");
-                var target = new XianZhiCrawlTarget(name, url, author, "tttang");
+                var target = new XianZhiCrawlTarget(name, url, author, "tttang", "");
                 if (targets.Exists(t=>t.Url == target.Url))
                 {
                     goto returnResult;

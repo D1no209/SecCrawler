@@ -49,7 +49,8 @@ public class FreebufWeb : AbstractCrawler
                     t.Title,
                     $"https://www.freebuf.com{t.ArticleUrl}",
                     t.Nickname,
-                    "freebuf"
+                    "freebuf",
+                    ""
                 ));
             foreach (var xianZhiCrawlTarget in ars)
             {

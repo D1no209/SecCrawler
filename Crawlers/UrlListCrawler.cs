@@ -20,7 +20,7 @@ public class UrlListCrawler : AbstractCrawler
     {
         var urls = await File.ReadAllLinesAsync("url.txt");
         return urls.Select(CrawlTarget (url) => new XianZhiCrawlTarget
-            (url, url, "", "url")).ToList();
+            (url, url, "", "url","")).ToList();
     }
 
     public override async Task<IPage?> ParseTarget(CrawlTarget crawlTarget, IPage page)

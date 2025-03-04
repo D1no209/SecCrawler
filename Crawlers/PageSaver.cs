@@ -18,26 +18,27 @@ public class PageSaver
         _crawlerMarkedTarget.DeleteMany(t => t.Crawler == crawler);
         _crawlerTargets.DeleteMany(t => t.Crawler == (crawler));
         return Task.CompletedTask;
-    } 
-    
+    }
+
     public PageSaver(string root)
     {
         _root = root;
-        _db = new LiteDatabase("data/crawlers.db");
+        _db = new LiteDatabase("crawlers.db");
         _crawlerTargets = _db.GetCollection<CrawledPage>();
         _crawlerMarkedTarget = _db.GetCollection<CrawlTarget>();
     }
+
     public Task MarkTarget(CrawlTarget target)
     {
         _crawlerMarkedTarget.Insert(target);
         return Task.CompletedTask;
     }
-    
-    public  Task<List<CrawlTarget>> GetMarkedTargetsByCrawler(string crawler)
+
+    public Task<List<CrawlTarget>> GetMarkedTargetsByCrawler(string crawler)
     {
         return Task.FromResult(_crawlerMarkedTarget.Query().Where(t => t.Crawler == crawler).ToList());
     }
-    
+
     public Task<bool> CheckSaved(string url)
     {
         return Task.FromResult(_crawlerTargets.Exists(t => t.Url == url));
@@ -58,7 +59,8 @@ public class PageSaver
             _crawlerTargets.Insert(new CrawledPage(crawlMarkedTarget.Name, crawlMarkedTarget.Url, crawlMarkedTarget.Author, filepath, crawlMarkedTarget.Crawler));
         }
         */
-        var path = _crawlerTargets.Query().Select(t => t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\',Path.DirectorySeparatorChar)).ToList();
+        var path = _crawlerTargets.Query().Select(t =>
+            t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)).ToList();
         var home = path.GroupBy(Path.GetDirectoryName).ToList();
         foreach (var grouping in home)
         {
@@ -69,40 +71,51 @@ public class PageSaver
                 path.Remove(grouping.Key);
                 continue;
             }
+
             var actualFiles = Directory.EnumerateFiles(grouping.Key);
             foreach (var actualFile in actualFiles)
             {
                 path.Remove(actualFile);
             }
         }
-        
-        _crawlerTargets.DeleteMany(t => path.Contains(t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\',Path.DirectorySeparatorChar)));
+
+        _crawlerTargets.DeleteMany(t =>
+            path.Contains(t.Path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)));
         foreach (var brokenPath in path)
         {
             AnsiConsole.MarkupLine("[yellow]Broken Path: {0}[/]", brokenPath.EscapeMarkup());
         }
     }
-    
+
     public async Task SavePage(IPage? page, CrawlTarget crawlTarget)
     {
-        if (page == null)
-            return;
-        Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}"));
-        Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}-pdf"));
-        var name = crawlTarget.Name;
-        // replace invalid characters with fullwidth characters
-        name = NormalizeFileName(name);
-        var author = NormalizeFileName(crawlTarget.Author);
-        var saveto = Path.Combine(_root, $"{crawlTarget.Crawler}/{name} by {author}.mhtml");
-        var cdpSession = await page.CreateCDPSessionAsync();
-        var pageContent = await cdpSession.SendAsync<JObject>("Page.captureSnapshot");
-        await File.WriteAllTextAsync(saveto, pageContent.Value<string>("data"));
-        
-        var pdfPath = Path.Combine(_root, $"{crawlTarget.Crawler}-pdf/{name} by {author}.pdf");
-        await page.PdfAsync(pdfPath);
-        _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto, crawlTarget.Crawler));
+        try
+        {
+            if (page == null)
+                return;
+            Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}", crawlTarget.Category));
+            Directory.CreateDirectory(Path.Combine(_root, $"{crawlTarget.Crawler}-pdf", crawlTarget.Category));
+            var name = crawlTarget.Name;
+            // replace invalid characters with fullwidth characters
+            name = NormalizeFileName(name);
+            var author = NormalizeFileName(crawlTarget.Author);
+            var saveto = Path.Combine(_root, $"{crawlTarget.Crawler}/{crawlTarget.Category}/{name} by {author}.mhtml");
+            var cdpSession = await page.CreateCDPSessionAsync();
+            var pageContent = await cdpSession.SendAsync<JObject>("Page.captureSnapshot");
+            await File.WriteAllTextAsync(saveto, pageContent.Value<string>("data"));
+
+            var pdfPath = Path.Combine(_root,
+                $"{crawlTarget.Crawler}-pdf/{crawlTarget.Category}/{name} by {author}.pdf");
+            await page.PdfAsync(pdfPath);
+            _crawlerTargets.Insert(new CrawledPage(crawlTarget.Name, crawlTarget.Url, crawlTarget.Author, saveto,
+                crawlTarget.Crawler));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
-    
+
     public static string NormalizeFileName(string name)
     {
         return name.Replace(":", "：")
@@ -122,18 +135,16 @@ public class PageSaver
 
 public class CrawledPage(string name, string url, string author, string path, string crawler)
 {
-
     public CrawledPage() : this("", "", "", "", "")
     {
-        
     }
-    
+
     public string Name { get; set; } = name;
     public string Url { get; set; } = url;
-    
+
     public string Author { get; set; } = author;
-    
+
     public string Path { get; set; } = path;
-    
+
     public string Crawler { get; set; } = crawler;
 }

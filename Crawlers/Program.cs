@@ -7,18 +7,18 @@ using Spectre.Console;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.ConfigureContainer(new DepositoryServiceProviderFactory());
-builder.Services.AddSingleton(new PageSaver(@"/app/articles"));
+builder.Services.AddSingleton(new PageSaver(@"/articles"));
 builder.Services.AddSingleton<IProxyRotator, SimpleProxyRotator>();
-builder.Services.AddSingleton<AbstractCrawler, XianZhiCrawler>();
-builder.Services.AddSingleton<AbstractCrawler, FreebufWeb>();
+// builder.Services.AddSingleton<AbstractCrawler, XianZhiCrawler>();
+// builder.Services.AddSingleton<AbstractCrawler, FreebufWeb>();
 // builder.Services.AddSingleton<AbstractCrawler, TiaoTiaoTangCrawler>();
-// builder.Services.AddSingleton<AbstractCrawler, UrlListCrawler>();
+builder.Services.AddSingleton<AbstractCrawler, UrlListCrawler>();
 var app = builder.Build();
 
 var browser = await new Launcher().LaunchAsync(new LaunchOptions()
 {
-    Headless = true,
-    ExecutablePath = @"/usr/bin/chromium",
+    Headless = false,
+    ExecutablePath = Environment.GetEnvironmentVariable("CHROME_PATH") ?? @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     Args =
     [
         "--no-sandbox",
@@ -29,13 +29,14 @@ var browser = await new Launcher().LaunchAsync(new LaunchOptions()
         "--disable-setuid-sandbox",
         "--ignore-certificate-errors",
         "--media-cache-size=1",
-        "--disk-cache-size=1"
+        "--disk-cache-size=1",
+        "--disable-features=HttpsUpgrades"
     ]
 });
 
 var pageSaver = app.Services.GetRequiredService<PageSaver>();
 AnsiConsole.MarkupLine("Checking Broken Path");
-pageSaver.CheckBroken();
+// pageSaver.CheckBroken();
 var crawlers = app.Services.GetServices<AbstractCrawler>();
 List<Task> tasks = [];
 var parallel = 10;

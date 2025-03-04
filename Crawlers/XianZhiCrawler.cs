@@ -8,72 +8,89 @@ namespace Crawlers;
 public class XianZhiCrawler : AbstractCrawler
 {
     private readonly PageSaver _pageSaver;
-    private readonly IProxyRotator _proxyRotator;
+    // private readonly IProxyRotator _proxyRotator;
 
     public XianZhiCrawler(PageSaver pageSaver, IProxyRotator proxyRotator)
     {
         _pageSaver = pageSaver;
-        _proxyRotator = proxyRotator;
+        // _proxyRotator = proxyRotator;
     }
 
-    public override string Name => "先知社区 - 技术文章";
+    public override string Name => "先知社区";
     
     public override async Task StartCrawl()
     {
-        await _proxyRotator.Initialize();
+        // await _proxyRotator.Initialize();
     }
 
     public override async Task<IPage> NewPage(IBrowser browser)
     {
         var page = await browser.NewPageAsync();
         await page.GoToAsync(@"https://xz.aliyun.com/");
-        await page.SetRequestInterceptionAsync(true);
-        page.AddRequestInterceptor(RequestInterceptor);
+        // await page.SetRequestInterceptionAsync(true);
+        // page.AddRequestInterceptor(RequestInterceptor);
         return page;
     }
 
     public override async Task<List<CrawlTarget>> GetTargets(IPage page)
     {
-        var targets = await GetAreaTargets(page, "1");
-        targets.AddRange(await GetAreaTargets(page, "4"));
+        var targets = await GetAreaTargets(page, "9", "技术文章"); // 技术文章
+        targets.AddRange(await GetAreaTargets(page, "24", "渗透测试")); // 渗透测试
+        targets.AddRange(await GetAreaTargets(page, "2", "漏洞分析")); // 漏洞分析
+        targets.AddRange(await GetAreaTargets(page, "14", "Web安全")); // web安全
+        targets.AddRange(await GetAreaTargets(page, "20","二进制安全")); // 二进制安全
+        targets.AddRange(await GetAreaTargets(page, "15","移动安全")); // 移动安全
+        targets.AddRange(await GetAreaTargets(page, "16","IOT 安全")); // IOT 安全
+        targets.AddRange(await GetAreaTargets(page, "10","企业安全")); // 企业安全
+        targets.AddRange(await GetAreaTargets(page, "21","区块链安全")); // 区块链安全
+        targets.AddRange(await GetAreaTargets(page, "11","CTF")); // CTF
+        targets.AddRange(await GetAreaTargets(page, "3","安全工具")); // 安全工具
         return targets;
     }
 
-    private async Task<List<CrawlTarget>> GetAreaTargets(IPage page, string area)
+    private async Task<List<CrawlTarget>> GetAreaTargets(IPage page, string area, string areaName)
     {
         var targets = new List<CrawlTarget>();
         targets.AddRange((await _pageSaver.GetMarkedTargetsByCrawler("xianzhi")).DistinctBy(t=>t.Url));
-        await page.GoToAsync(@"https://xz.aliyun.com/tab/" + area);
-        var pageSpan = await page.QuerySelectorAsync("ul.pull-right > li > a.active");
-        var content = await pageSpan.EvaluateFunctionAsync<string>("(element) => element.innerText");
-        var res = content[2..];
-        var totalPage = int.Parse(res);
-        for (var i = 0; i < totalPage; i++)
+        await page.GoToAsync(@"https://xz.aliyun.com/news?cate_id=" + area);
+        var i = 0;
+        while (true)
         {
-            var pageUrl = $"https://xz.aliyun.com/tab/{area}?page={i + 1}";
+            var pageUrl = $"https://xz.aliyun.com/news?cate_id={area}&page={i + 1}";
             await page.GoToAsync(pageUrl);
-            var elements = await page.QuerySelectorAllAsync("table.topic-list > tbody > tr > td");
+            var elements = await page.QuerySelectorAllAsync("div.news_item");
             foreach (var element in elements)
             {
                 var name =
-                    await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>(
+                    await (await element.QuerySelectorAsync("a.news_title")).EvaluateFunctionAsync<string>(
                         "(element) => element.innerText");
                 var url =
-                    await (await element.QuerySelectorAsync("a.topic-title")).EvaluateFunctionAsync<string>(
+                    await (await element.QuerySelectorAsync("a.news_title")).EvaluateFunctionAsync<string>(
                         "(element) => element.href");
                 var author =
-                    await (await element.QuerySelectorAsync("p.topic-info > a")).EvaluateFunctionAsync<string>(
+                    await (await element.QuerySelectorAsync("a.user-info > span")).EvaluateFunctionAsync<string>(
                         "(element) => element.innerText");
-                if (targets.Exists(t => t.Url == url))
-                {
-                    goto returnResult;
-                }
+                // if (targets.Exists(t => t.Url == url))
+                // {
+                //     goto returnResult;
+                // }
 
-                var target = new XianZhiCrawlTarget(name, url, author, "xianzhi");
+                var target = new XianZhiCrawlTarget(name, url, author, "xianzhi",areaName);
                 targets.Add(target);
                 await _pageSaver.MarkTarget(target);
             }
 
+            var nextPage = await page.QuerySelectorAsync("li.page-item-last");
+            if (nextPage == null)
+            {
+                break;
+            }
+            var classList = await nextPage.EvaluateFunctionAsync<string>("(element) => element.className");
+            if (classList.Contains("disabled"))
+            {
+                break;
+            }
+            i++;
             await Task.Delay(1000);
         }
 
@@ -92,19 +109,19 @@ public class XianZhiCrawler : AbstractCrawler
             }
             catch
             {
-                await _proxyRotator.RotateProxy();
-                goto navigateToPage;
+                // await _proxyRotator.RotateProxy();
+                // goto navigateToPage;
             }
 
             // 隐藏无关元素
             if (await page.GetTitleAsync() == "滑动验证页面")
             {
                 AnsiConsole.MarkupLine("[yellow] WAF HITTED, ROTATING PROXY[/]");
-                await _proxyRotator.RotateProxy();
+                // await _proxyRotator.RotateProxy();
                 goto navigateToPage;
             }
 
-            List<string> selectors = [".navbar", ".sidebar", "#reply-box", ".bs-docs-footer"];
+            List<string> selectors = ["div.nav_border", "div.right_container", "div.detail_share", "div.comment_textarea"];
             foreach (var selector in selectors)
             {
                 var element = await page.QuerySelectorAsync(selector);
@@ -153,9 +170,9 @@ public class XianZhiCrawler : AbstractCrawler
             return;
         }
 
-        AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/] , Requesting: {1}", _proxyRotator.GetCurrentProxy(), request.Url);
+        // AnsiConsole.MarkupLine("Current Proxy: [bold]{0}[/] , Requesting: {1}", _proxyRotator.GetCurrentProxy(), request.Url);
         var httpClientHandler = new HttpClientHandler();
-        httpClientHandler.Proxy = new WebProxy(_proxyRotator.GetCurrentProxy());
+        // httpClientHandler.Proxy = new WebProxy(_proxyRotator.GetCurrentProxy());
         var httpClient = new HttpClient(httpClientHandler);
         var method = request.Method.Method switch
         {
@@ -187,7 +204,7 @@ public class XianZhiCrawler : AbstractCrawler
         catch (Exception e)
         {
             AnsiConsole.MarkupLine("[yellow]Request Error, rotating proxy[/]");
-            await _proxyRotator.RotateProxy();
+            // await _proxyRotator.RotateProxy();
             await RequestInterceptor(request);
             return;
         }
@@ -208,10 +225,11 @@ public class XianZhiCrawler : AbstractCrawler
     }
 }
 
-public class XianZhiCrawlTarget(string name, string url, string author, string crawler) : CrawlTarget
+public class XianZhiCrawlTarget(string name, string url, string author, string crawler, string category ) : CrawlTarget
 {
     public override string Name { get; set; } = name;
     public override string Url { get; } = url;
     public override string Author { get; set; } = author;
+    public override string Category { get; set; } = category;
     public override string Crawler { get; } = crawler;
 }
